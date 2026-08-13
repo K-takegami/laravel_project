@@ -1,3 +1,5 @@
+{{-- ユーザー/管理者ログイン関連画面が共通で使う最小レイアウト。 --}}
+{{-- 各ページは @section('title') / @section('content') で中身を差し込む。 --}}
 <!DOCTYPE html>
 <html lang="ja">
     <head>

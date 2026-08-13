@@ -1,3 +1,4 @@
+{{-- ログイン後のユーザーホーム画面。 --}}
 @extends('layouts.app')
 
 @section('title', 'ユーザーホーム')
@@ -14,6 +15,7 @@
             </form>
         </div>
 
+        {{-- お知らせ表示枠: 現時点では静的なプレースホルダー(DB連携なし) --}}
         <div class="rounded-lg border border-gray-300 bg-white p-6 shadow-sm">
             <h2 class="mb-3 text-lg font-semibold">お知らせ</h2>
             <p class="text-sm text-gray-500">お知らせはありません。</p>

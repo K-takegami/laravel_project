@@ -1,3 +1,5 @@
+{{-- ユーザーログイン画面(1段階目: メールアドレス・パスワード入力)。 --}}
+{{-- 送信先は User\LoginController::login()。成功すると認証コード入力画面へ遷移する。 --}}
 @extends('layouts.app')
 
 @section('title', 'ユーザーログイン')
@@ -7,6 +9,7 @@
         <div class="rounded-lg border border-gray-300 bg-white p-8 shadow-sm">
             <h1 class="mb-6 text-center text-xl font-semibold">ユーザーログイン</h1>
 
+            {{-- 認証失敗時のエラーメッセージ表示 --}}
             @if ($errors->any())
                 <div class="mb-4 rounded-md border border-red-300 bg-[#fff2f2] p-3 text-sm text-red-700">
                     <ul class="list-disc pl-5">

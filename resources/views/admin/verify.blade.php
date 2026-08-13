@@ -1,3 +1,5 @@
+{{-- 管理者ログイン画面(2段階目: メールで届いた認証コードの入力)。 --}}
+{{-- 送信先は Admin\LoginController::verify()。成功するとログインが確立し /admin/home へ遷移する。 --}}
 @extends('layouts.app')
 
 @section('title', '認証コード入力')
@@ -10,6 +12,7 @@
                 ご登録のメールアドレスに送信された6桁の認証コードを入力してください。
             </p>
 
+            {{-- コード不一致・有効期限切れ時のエラーメッセージ表示 --}}
             @if ($errors->any())
                 <div class="mb-4 rounded-md border border-red-300 bg-[#fff2f2] p-3 text-sm text-red-700">
                     <ul class="list-disc pl-5">
