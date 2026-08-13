@@ -13,9 +13,13 @@ Route::get('/', function () {
 Route::prefix('user')->name('user.')->group(function () {
     Route::middleware('guest:web')->group(function () {
         Route::get('login', [UserLoginController::class, 'showLogin'])->name('login');
-        Route::post('login', [UserLoginController::class, 'login']);
         Route::get('login/verify', [UserLoginController::class, 'showVerify'])->name('login.verify');
-        Route::post('login/verify', [UserLoginController::class, 'verify']);
+
+        // ブルートフォース対策: パスワード・認証コードの総当たりを防ぐため試行回数を制限する(1分間に5回まで)
+        Route::middleware('throttle:5,1')->group(function () {
+            Route::post('login', [UserLoginController::class, 'login']);
+            Route::post('login/verify', [UserLoginController::class, 'verify']);
+        });
     });
 
     Route::middleware('auth:web')->group(function () {
@@ -27,9 +31,13 @@ Route::prefix('user')->name('user.')->group(function () {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest:admin')->group(function () {
         Route::get('login', [AdminLoginController::class, 'showLogin'])->name('login');
-        Route::post('login', [AdminLoginController::class, 'login']);
         Route::get('login/verify', [AdminLoginController::class, 'showVerify'])->name('login.verify');
-        Route::post('login/verify', [AdminLoginController::class, 'verify']);
+
+        // ブルートフォース対策: パスワード・認証コードの総当たりを防ぐため試行回数を制限する(1分間に5回まで)
+        Route::middleware('throttle:5,1')->group(function () {
+            Route::post('login', [AdminLoginController::class, 'login']);
+            Route::post('login/verify', [AdminLoginController::class, 'verify']);
+        });
     });
 
     Route::middleware('auth:admin')->group(function () {

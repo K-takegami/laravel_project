@@ -33,6 +33,15 @@ class LoginController extends Controller
     private const REMEMBER_TTL_MINUTES = 60 * 24;
 
     /**
+     * タイミング攻撃対策用のダミーハッシュ値(実在のパスワードではない)。
+     *
+     * 管理者が存在しない場合でもこの値でHash::checkを実行し、
+     * 「存在しないメールアドレスは即座に、存在するメールアドレスは
+     * bcryptの検証時間だけ遅れて」応答が返る、という応答速度の差を無くす。
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$10$HLWBPuTLbffDbjaiui.Nnuq6aduZk8RvqJSJIoC9HRzO/V8VPpxY2';
+
+    /**
      * コンストラクタ。DBアクセスを担当するRepositoryと、生成/検証ロジックを担当するServiceを注入する。
      *
      * @param  AdminRepository  $adminRepository  管理者の検索を担当するRepository
@@ -70,7 +79,13 @@ class LoginController extends Controller
     {
         $admin = $this->adminRepository->findByEmail($request->string('email')->toString());
 
-        if (! $admin || ! Hash::check($request->string('password')->toString(), $admin->password)) {
+        // タイミング攻撃対策: 管理者が存在しない場合もダミーハッシュと比較し、応答時間を揃える
+        $passwordMatches = Hash::check(
+            $request->string('password')->toString(),
+            $admin->password ?? self::DUMMY_PASSWORD_HASH,
+        );
+
+        if (! $admin || ! $passwordMatches) {
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'メールアドレスまたはパスワードが正しくありません。']);
@@ -92,7 +107,9 @@ class LoginController extends Controller
         $admin->notify(new TwoFactorCodeNotification($code['plain']));
 
         // まだ本ログインは確立せず、認証待ち状態をセッションに保持する
-        session(['pending_2fa' => ['guard' => 'admin', 'id' => $admin->id]]);
+        // (キーをガードごとに分けることで、同じブラウザでuser/adminのログインを
+        //  同時に進めても互いの認証待ち状態を上書きしないようにする)
+        session(['pending_2fa.admin' => $admin->id]);
 
         return redirect()->route('admin.login.verify');
     }
@@ -128,10 +145,10 @@ class LoginController extends Controller
             return redirect()->route('admin.login');
         }
 
-        $admin = $this->adminRepository->findById(session('pending_2fa.id'));
+        $admin = $this->adminRepository->findById(session('pending_2fa.admin'));
 
         if (! $admin) {
-            session()->forget('pending_2fa');
+            session()->forget('pending_2fa.admin');
 
             return redirect()->route('admin.login');
         }
@@ -147,7 +164,7 @@ class LoginController extends Controller
         $remember = $this->twoFactorCodeService->generateRememberToken();
         $this->twoFactorCodeRepository->assignRememberToken($admin, $remember['hashed'], $remember['expiresAt']);
 
-        session()->forget('pending_2fa');
+        session()->forget('pending_2fa.admin');
 
         Auth::guard('admin')->login($admin);
         $request->session()->regenerate();
@@ -180,6 +197,6 @@ class LoginController extends Controller
      */
     private function hasPendingTwoFactor(): bool
     {
-        return session('pending_2fa.guard') === 'admin';
+        return session()->has('pending_2fa.admin');
     }
 }

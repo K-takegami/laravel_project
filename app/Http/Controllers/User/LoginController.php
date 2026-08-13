@@ -33,6 +33,15 @@ class LoginController extends Controller
     private const REMEMBER_TTL_MINUTES = 60 * 24;
 
     /**
+     * タイミング攻撃対策用のダミーハッシュ値(実在のパスワードではない)。
+     *
+     * ユーザーが存在しない場合でもこの値でHash::checkを実行し、
+     * 「存在しないメールアドレスは即座に、存在するメールアドレスは
+     * bcryptの検証時間だけ遅れて」応答が返る、という応答速度の差を無くす。
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$10$HLWBPuTLbffDbjaiui.Nnuq6aduZk8RvqJSJIoC9HRzO/V8VPpxY2';
+
+    /**
      * コンストラクタ。DBアクセスを担当するRepositoryと、生成/検証ロジックを担当するServiceを注入する。
      *
      * @param  UserRepository  $userRepository  ユーザーの検索を担当するRepository
@@ -70,7 +79,13 @@ class LoginController extends Controller
     {
         $user = $this->userRepository->findByEmail($request->string('email')->toString());
 
-        if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
+        // タイミング攻撃対策: ユーザーが存在しない場合もダミーハッシュと比較し、応答時間を揃える
+        $passwordMatches = Hash::check(
+            $request->string('password')->toString(),
+            $user->password ?? self::DUMMY_PASSWORD_HASH,
+        );
+
+        if (! $user || ! $passwordMatches) {
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'メールアドレスまたはパスワードが正しくありません。']);
@@ -92,7 +107,9 @@ class LoginController extends Controller
         $user->notify(new TwoFactorCodeNotification($code['plain']));
 
         // まだ本ログインは確立せず、認証待ち状態をセッションに保持する
-        session(['pending_2fa' => ['guard' => 'web', 'id' => $user->id]]);
+        // (キーをガードごとに分けることで、同じブラウザでuser/adminのログインを
+        //  同時に進めても互いの認証待ち状態を上書きしないようにする)
+        session(['pending_2fa.web' => $user->id]);
 
         return redirect()->route('user.login.verify');
     }
@@ -128,10 +145,10 @@ class LoginController extends Controller
             return redirect()->route('user.login');
         }
 
-        $user = $this->userRepository->findById(session('pending_2fa.id'));
+        $user = $this->userRepository->findById(session('pending_2fa.web'));
 
         if (! $user) {
-            session()->forget('pending_2fa');
+            session()->forget('pending_2fa.web');
 
             return redirect()->route('user.login');
         }
@@ -147,7 +164,7 @@ class LoginController extends Controller
         $remember = $this->twoFactorCodeService->generateRememberToken();
         $this->twoFactorCodeRepository->assignRememberToken($user, $remember['hashed'], $remember['expiresAt']);
 
-        session()->forget('pending_2fa');
+        session()->forget('pending_2fa.web');
 
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
@@ -180,6 +197,6 @@ class LoginController extends Controller
      */
     private function hasPendingTwoFactor(): bool
     {
-        return session('pending_2fa.guard') === 'web';
+        return session()->has('pending_2fa.web');
     }
 }

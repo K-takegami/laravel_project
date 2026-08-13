@@ -50,7 +50,7 @@ class AdminLoginTest extends TestCase
         $code = app(TwoFactorCodeService::class)->generate();
         app(TwoFactorCodeRepository::class)->assignCode($admin, $code['hashed'], $code['expiresAt']);
 
-        $this->withSession(['pending_2fa' => ['guard' => 'admin', 'id' => $admin->id]]);
+        $this->withSession(['pending_2fa' => ['admin' => $admin->id]]);
 
         $response = $this->post('/admin/login/verify', [
             'code' => $code['plain'],
@@ -67,7 +67,7 @@ class AdminLoginTest extends TestCase
         $code = app(TwoFactorCodeService::class)->generate();
         app(TwoFactorCodeRepository::class)->assignCode($admin, $code['hashed'], $code['expiresAt']);
 
-        $this->withSession(['pending_2fa' => ['guard' => 'admin', 'id' => $admin->id]]);
+        $this->withSession(['pending_2fa' => ['admin' => $admin->id]]);
 
         $response = $this->post('/admin/login/verify', [
             'code' => '000000',

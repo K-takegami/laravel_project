@@ -50,7 +50,7 @@ class UserLoginTest extends TestCase
         $code = app(TwoFactorCodeService::class)->generate();
         app(TwoFactorCodeRepository::class)->assignCode($user, $code['hashed'], $code['expiresAt']);
 
-        $this->withSession(['pending_2fa' => ['guard' => 'web', 'id' => $user->id]]);
+        $this->withSession(['pending_2fa' => ['web' => $user->id]]);
 
         $response = $this->post('/user/login/verify', [
             'code' => $code['plain'],
@@ -67,7 +67,7 @@ class UserLoginTest extends TestCase
         $code = app(TwoFactorCodeService::class)->generate();
         app(TwoFactorCodeRepository::class)->assignCode($user, $code['hashed'], $code['expiresAt']);
 
-        $this->withSession(['pending_2fa' => ['guard' => 'web', 'id' => $user->id]]);
+        $this->withSession(['pending_2fa' => ['web' => $user->id]]);
 
         $response = $this->post('/user/login/verify', [
             'code' => '000000',

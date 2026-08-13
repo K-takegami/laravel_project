@@ -3,18 +3,33 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class TwoFactorCodeNotification extends Notification
+/**
+ * 2段階認証コードをメールで通知するクラス。
+ *
+ * ShouldQueueを実装し、メール送信をキュー経由の非同期処理にすることで、
+ * SMTPサーバーが遅い/不通の場合でもログインのHTTPリクエスト自体が
+ * ブロックされないようにする(QUEUE_CONNECTIONがsync以外の場合)。
+ */
+class TwoFactorCodeNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * @param  string  $code  メールで送信する平文の認証コード
+     * @return void
+     */
     public function __construct(private readonly string $code)
     {
     }
 
     /**
+     * 通知の送信チャンネルを指定する(メールのみ)。
+     *
+     * @param  object  $notifiable  通知対象のUser/Adminモデルインスタンス
      * @return array<int, string>
      */
     public function via(object $notifiable): array
@@ -22,6 +37,12 @@ class TwoFactorCodeNotification extends Notification
         return ['mail'];
     }
 
+    /**
+     * メール本文を組み立てる。
+     *
+     * @param  object  $notifiable  通知対象のUser/Adminモデルインスタンス
+     * @return MailMessage  認証コードを含むメールメッセージ
+     */
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
